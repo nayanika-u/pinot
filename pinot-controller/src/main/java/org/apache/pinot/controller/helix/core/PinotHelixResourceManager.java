@@ -171,6 +171,8 @@ import org.apache.pinot.spi.config.table.TenantConfig;
 import org.apache.pinot.spi.config.table.TierConfig;
 import org.apache.pinot.spi.config.table.UpsertConfig;
 import org.apache.pinot.spi.config.table.assignment.InstancePartitionsType;
+import org.apache.pinot.spi.config.table.ingestion.BatchIngestionConfig;
+import org.apache.pinot.spi.config.table.ingestion.IngestionConfig;
 import org.apache.pinot.spi.config.tenant.Tenant;
 import org.apache.pinot.spi.config.user.ComponentType;
 import org.apache.pinot.spi.config.user.RoleType;
@@ -2033,10 +2035,117 @@ public class PinotHelixResourceManager {
    * @throws IOException
    */
   public void updateTableConfig(TableConfig tableConfig)
-      throws IOException {
+          throws IOException {
     validateTableTenantConfig(tableConfig);
     validateTableTaskMinionInstanceTagConfig(tableConfig);
+
+    // Extract and store credentials in secret store
+    processSecretInformation(tableConfig);
+
     setExistingTableConfig(tableConfig);
+  }
+
+  /**
+   * Process any secret information in the table config.
+   * Extracts credentials, stores them in the secret store, and replaces
+   * with secret references in the table config.
+   *
+   * @param tableConfig The table configuration to process
+   */
+  private void processSecretInformation(TableConfig tableConfig) {
+    try {
+      // Extract connection credentials from the table config
+      Map<String, String> credentials = extractCredentialsFromTableConfig(tableConfig);
+
+      if (!credentials.isEmpty()) {
+        // Store in secret service
+        String secretKey = _secretStore.storeSecret(
+                "pinot/tables/" + tableConfig.getTableName() + "/credentials",
+                serializeCredentials(credentials),
+                Map.of("tableName", tableConfig.getTableName())
+        );
+
+        // Replace credentials with secret key
+        replaceCredentialsWithKey(tableConfig, secretKey);
+      }
+    } catch (SecretStoreException e) {
+      LOGGER.error("Failed to process secrets for table: {}", tableConfig.getTableName(), e);
+      throw new RuntimeException("Failed to process secrets for table configuration", e);
+    }
+  }
+
+  /**
+   * Extracts credential information from a table config.
+   *
+   * @param tableConfig The table configuration
+   * @return Map of credential name to value
+   */
+  private Map<String, String> extractCredentialsFromTableConfig(TableConfig tableConfig) {
+    Map<String, String> credentials = new HashMap<>();
+
+    // Extract credentials from ingestion config, source config, etc.
+    // This depends on the specific structure of credentials in your table configs
+
+    // Example for SQL source:
+    IngestionConfig ingestionConfig = tableConfig.getIngestionConfig();
+    if (ingestionConfig != null) {
+      BatchIngestionConfig batchConfig = ingestionConfig.getBatchIngestionConfig();
+      if (batchConfig != null) {
+        List<Map<String, String>> sourceConfigs = batchConfig.getSourceConfigs();
+        if (sourceConfigs != null) {
+          for (Map<String, String> sourceConfig : sourceConfigs) {
+            if (sourceConfig.containsKey("username") && sourceConfig.containsKey("password")) {
+              credentials.put("username", sourceConfig.get("username"));
+              credentials.put("password", sourceConfig.get("password"));
+              // Mark these for replacement
+              sourceConfig.put("username", "TO_BE_REPLACED");
+              sourceConfig.put("password", "TO_BE_REPLACED");
+            }
+          }
+        }
+      }
+    }
+
+    return credentials;
+  }
+
+  /**
+   * Serializes credentials into a string format for storage
+   *
+   * @param credentials Map of credential name to value
+   * @return Serialized credentials string
+   */
+  private String serializeCredentials(Map<String, String> credentials) {
+    // Simple JSON serialization or other format as appropriate
+    return OBJECT_MAPPER.writeValueAsString(credentials);
+  }
+
+  /**
+   * Replaces credential placeholders with the secret key reference
+   *
+   * @param tableConfig The table configuration
+   * @param secretKey The secret key reference
+   */
+  private void replaceCredentialsWithKey(TableConfig tableConfig, String secretKey) {
+    // Replace the "TO_BE_REPLACED" placeholders with the secret key reference
+
+    IngestionConfig ingestionConfig = tableConfig.getIngestionConfig();
+    if (ingestionConfig != null) {
+      BatchIngestionConfig batchConfig = ingestionConfig.getBatchIngestionConfig();
+      if (batchConfig != null) {
+        List<Map<String, String>> sourceConfigs = batchConfig.getSourceConfigs();
+        if (sourceConfigs != null) {
+          for (Map<String, String> sourceConfig : sourceConfigs) {
+            if ("TO_BE_REPLACED".equals(sourceConfig.get("username"))) {
+              sourceConfig.put("username", "SECRET:" + secretKey);
+            }
+            if ("TO_BE_REPLACED".equals(sourceConfig.get("password"))) {
+              sourceConfig.put("password", "SECRET:" + secretKey);
+            }
+          }
+        }
+      }
+    }
   }
 
   /**
