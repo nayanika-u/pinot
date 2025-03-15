@@ -159,6 +159,7 @@ import org.apache.pinot.controller.helix.core.rebalance.TableRebalanceContext;
 import org.apache.pinot.controller.helix.core.rebalance.TableRebalancer;
 import org.apache.pinot.controller.helix.core.rebalance.ZkBasedTableRebalanceObserver;
 import org.apache.pinot.controller.helix.starter.HelixConfig;
+import org.apache.pinot.controller.secretstore.SecretStoreUtils;
 import org.apache.pinot.controller.util.TableSizeReader;
 import org.apache.pinot.segment.spi.SegmentMetadata;
 import org.apache.pinot.spi.config.DatabaseConfig;
@@ -177,6 +178,8 @@ import org.apache.pinot.spi.config.user.RoleType;
 import org.apache.pinot.spi.config.user.UserConfig;
 import org.apache.pinot.spi.data.DateTimeFieldSpec;
 import org.apache.pinot.spi.data.Schema;
+import org.apache.pinot.spi.secretstore.NoOpSecretStore;
+import org.apache.pinot.spi.secretstore.SecretStore;
 import org.apache.pinot.spi.utils.CommonConstants;
 import org.apache.pinot.spi.utils.CommonConstants.Helix;
 import org.apache.pinot.spi.utils.CommonConstants.Helix.StateModel.BrokerResourceStateModel;
@@ -243,11 +246,14 @@ public class PinotHelixResourceManager {
   private final LineageManager _lineageManager;
   private final RebalancePreChecker _rebalancePreChecker;
   private TableSizeReader _tableSizeReader;
+  private SecretStore _secretStore;
+  // TODO - how to get it from controllerConf
+  private String secretStorePrefix;
 
   public PinotHelixResourceManager(String zkURL, String helixClusterName, @Nullable String dataDir,
       boolean isSingleTenantCluster, boolean enableBatchMessageMode, int deletedSegmentsRetentionInDays,
       boolean enableTieredSegmentAssignment, LineageManager lineageManager, RebalancePreChecker rebalancePreChecker,
-      @Nullable ExecutorService executorService) {
+      @Nullable ExecutorService executorService, @Nullable SecretStore secretStore) {
     _helixZkURL = HelixConfig.getAbsoluteZkPathForHelix(zkURL);
     _helixClusterName = helixClusterName;
     _dataDir = dataDir;
@@ -272,6 +278,17 @@ public class PinotHelixResourceManager {
     _lineageManager = lineageManager;
     _rebalancePreChecker = rebalancePreChecker;
     _rebalancePreChecker.init(this, executorService);
+    this._secretStore = (secretStore != null) ? secretStore : new NoOpSecretStore();
+  }
+
+  public PinotHelixResourceManager(ControllerConf controllerConf, @Nullable ExecutorService executorService,
+                                   @Nullable SecretStore secretStore) {
+    this(controllerConf.getZkStr(), controllerConf.getHelixClusterName(), controllerConf.getDataDir(),
+            controllerConf.tenantIsolationEnabled(), controllerConf.getEnableBatchMessageMode(),
+            controllerConf.getDeletedSegmentsRetentionInDays(), controllerConf.tieredSegmentAssignmentEnabled(),
+            LineageManagerFactory.create(controllerConf),
+            RebalancePreCheckerFactory.create(controllerConf.getRebalancePreCheckerClass()),
+            executorService, secretStore);
   }
 
   public PinotHelixResourceManager(ControllerConf controllerConf, @Nullable ExecutorService executorService) {
@@ -279,7 +296,7 @@ public class PinotHelixResourceManager {
         controllerConf.tenantIsolationEnabled(), controllerConf.getEnableBatchMessageMode(),
         controllerConf.getDeletedSegmentsRetentionInDays(), controllerConf.tieredSegmentAssignmentEnabled(),
         LineageManagerFactory.create(controllerConf),
-        RebalancePreCheckerFactory.create(controllerConf.getRebalancePreCheckerClass()), executorService);
+        RebalancePreCheckerFactory.create(controllerConf.getRebalancePreCheckerClass()), executorService, null);
   }
 
   public PinotHelixResourceManager(ControllerConf controllerConf) {
@@ -287,7 +304,7 @@ public class PinotHelixResourceManager {
         controllerConf.tenantIsolationEnabled(), controllerConf.getEnableBatchMessageMode(),
         controllerConf.getDeletedSegmentsRetentionInDays(), controllerConf.tieredSegmentAssignmentEnabled(),
         LineageManagerFactory.create(controllerConf),
-        RebalancePreCheckerFactory.create(controllerConf.getRebalancePreCheckerClass()), null);
+        RebalancePreCheckerFactory.create(controllerConf.getRebalancePreCheckerClass()), null, null);
   }
 
   /**
@@ -2032,11 +2049,29 @@ public class PinotHelixResourceManager {
    * Validate the table config and update it
    * @throws IOException
    */
-  public void updateTableConfig(TableConfig tableConfig)
-      throws IOException {
+
+  // Update updateTableConfig method
+  public void updateTableConfig(TableConfig tableConfig) throws IOException {
     validateTableTenantConfig(tableConfig);
     validateTableTaskMinionInstanceTagConfig(tableConfig);
+
+    // Extract and store credentials in secret store
+    if (_secretStore != null && !(_secretStore instanceof NoOpSecretStore)) {
+      SecretStoreUtils.processSecretInformation(tableConfig, _secretStore, secretStorePrefix);
+    }
+
     setExistingTableConfig(tableConfig);
+  }
+
+  // Method to get resolved table config
+  public TableConfig getResolvedTableConfig(String tableNameWithType) {
+    TableConfig tableConfig = ZKMetadataProvider.getTableConfig(_propertyStore, tableNameWithType);
+
+    if (tableConfig != null && _secretStore != null && !(_secretStore instanceof NoOpSecretStore)) {
+      return SecretStoreUtils.resolveSecrets(tableConfig, _secretStore);
+    }
+
+    return tableConfig;
   }
 
   /**

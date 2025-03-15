@@ -355,6 +355,10 @@ public class ControllerConf extends PinotConfiguration {
   public static final String ENFORCE_POOL_BASED_ASSIGNMENT_KEY = "enforce.pool.based.assignment";
   public static final boolean DEFAULT_ENFORCE_POOL_BASED_ASSIGNMENT = false;
 
+  private static final String SECRET_MANAGEMENT_ENABLED = "controller.secretManagementEnabled";
+  private static final String SECRET_SERVICE_ENDPOINT = "controller.secretServiceEndpoint";
+  private static final String SECRET_STORE_PREFIX = "controller.secretStorePrefix";
+
   public ControllerConf() {
     super(new HashMap<>());
   }
@@ -1192,5 +1196,26 @@ public class ControllerConf extends PinotConfiguration {
   public boolean isEnableSwagger() {
     String enableSwagger = getProperty(ControllerConf.CONSOLE_SWAGGER_ENABLE);
     return enableSwagger == null || Boolean.parseBoolean(enableSwagger);
+  }
+
+  /**
+   * @return whether secret management is enabled
+   */
+  public boolean isSecretManagementEnabled() {
+    return getProperty(SECRET_MANAGEMENT_ENABLED, false);
+  }
+
+  /**
+   * @return the endpoint for the secret service
+   */
+  public String getSecretServiceEndpoint() {
+    return getProperty(SECRET_SERVICE_ENDPOINT, "http://secret-service:8080");
+  }
+
+  /**
+   * @return the prefix identifying which backend store to use
+   */
+  public String getSecretStorePrefix() {
+    return getProperty(SECRET_STORE_PREFIX, "aws/");
   }
 }

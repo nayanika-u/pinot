@@ -18,60 +18,43 @@
  */
 package org.apache.pinot.spi.secretstore;
 
-import java.util.Map;
-
 /**
  * Interface for managing secrets in Apache Pinot.
- *
- * This interface abstracts away the details of the underlying secret storage mechanism,
- * allowing Pinot to work with various secret management systems like AWS Secrets Manager,
- * HashiCorp Vault, or other custom implementations.
- *
- * Implementations of this interface should handle all aspects of secret management including
- * secure storage, retrieval, and cleanup of sensitive information such as connection credentials.
  */
 public interface SecretStore {
-
     /**
      * Stores a secret in the secret management system.
      *
-     * @param secretName A unique identifier for the secret, typically following a hierarchical
-     *                   naming pattern (e.g., "pinot/tables/myTable/credentials")
+     * @param secretName A unique identifier for the secret
      * @param secretValue The actual secret value to be securely stored
-     * @param metadata Additional metadata to associate with the secret (e.g., tableName, type)
      * @return A reference key that can be used later to retrieve the secret
-     * @throws SecretStoreException If the secret cannot be stored due to connectivity issues,
-     *                             permission problems, or other errors
+     * @throws SecretStoreException If the secret cannot be stored
      */
-    String storeSecret(String secretName, String secretValue, Map<String, String> metadata);
+    String storeSecret(String secretName, String secretValue) throws SecretStoreException;
 
     /**
      * Retrieves a secret from the secret management system.
      *
-     * @param secretKey The reference key obtained when the secret was stored
+     * @param secretKey The reference key for the secret
      * @return The actual secret value
-     * @throws SecretStoreException If the secret cannot be retrieved or doesn't exist
+     * @throws SecretStoreException If the secret cannot be retrieved
      */
-    String getSecret(String secretKey);
+    String getSecret(String secretKey) throws SecretStoreException;
 
     /**
      * Updates an existing secret with a new value.
      *
-     * @param secretKey The reference key for the secret to be updated
+     * @param secretKey The reference key for the secret
      * @param newSecretValue The new value to store
-     * @param metadata Updated metadata to associate with the secret
-     * @throws SecretStoreException If the secret cannot be updated or doesn't exist
+     * @throws SecretStoreException If the secret cannot be updated
      */
-    void updateSecret(String secretKey, String newSecretValue, Map<String, String> metadata);
+    void updateSecret(String secretKey, String newSecretValue) throws SecretStoreException;
 
     /**
      * Deletes a secret when it is no longer needed.
      *
-     * This method should be called when the associated resource (e.g., a table or connection)
-     * is being deleted to ensure proper cleanup of sensitive information.
-     *
      * @param secretKey The reference key for the secret to be deleted
-     * @throws SecretStoreException If the secret cannot be deleted or doesn't exist
+     * @throws SecretStoreException If the secret cannot be deleted
      */
-    void deleteSecret(String secretKey);
+    void deleteSecret(String secretKey) throws SecretStoreException;
 }
