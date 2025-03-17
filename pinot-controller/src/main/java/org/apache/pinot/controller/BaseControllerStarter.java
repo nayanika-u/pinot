@@ -335,9 +335,7 @@ public abstract class BaseControllerStarter implements ServiceStartable {
     SecretStore secretStore = SecretStoreFactory.createSecretStore(_config);
 
     // Initialize resource manager with the secret store
-    PinotHelixResourceManager resourceManager = new PinotHelixResourceManager(_config, null, secretStore);
-
-    return new PinotHelixResourceManager(_config, _executorService);
+    return new PinotHelixResourceManager(_config, _executorService, secretStore);
   }
 
   public PinotHelixResourceManager getHelixResourceManager() {
@@ -783,8 +781,8 @@ public abstract class BaseControllerStarter implements ServiceStartable {
 
   private void initPinotFSFactory() {
     LOGGER.info("Initializing PinotFSFactory");
-
-    PinotFSFactory.init(_config.subset(CommonConstants.Controller.PREFIX_OF_CONFIG_OF_PINOT_FS_FACTORY));
+    SecretStore secretStore = SecretStoreFactory.createSecretStore(_config);
+    PinotFSFactory.init(_config.subset(CommonConstants.Controller.PREFIX_OF_CONFIG_OF_PINOT_FS_FACTORY), secretStore);
   }
 
   private void initControllerFilePathProvider() {

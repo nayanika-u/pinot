@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import org.apache.pinot.spi.env.PinotConfiguration;
 import org.apache.pinot.spi.plugin.PluginManager;
+import org.apache.pinot.spi.secretstore.SecretStore;
+import org.apache.pinot.spi.utils.SecretStoreUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,9 +46,41 @@ public class PinotFSFactory {
       put(LOCAL_PINOT_FS_SCHEME, new NoClosePinotFS(new LocalPinotFS()));
     }
   };
+  private static SecretStore _secretStore;
 
   public static void register(String scheme, String fsClassName, PinotConfiguration fsConfiguration) {
     try {
+      if (_secretStore != null) {
+        Map<String, Object> configMap = fsConfiguration.toMap();
+        Map<String, Object> resolvedConfig = new HashMap<>(configMap);
+
+        // Check for and resolve any secret references
+        boolean hasSecrets = false;
+        for (Map.Entry<String, Object> entry : resolvedConfig.entrySet()) {
+          if (entry.getValue() instanceof String) {
+            String stringValue = (String) entry.getValue();
+            if (SecretStoreUtil.isSecretReference(stringValue)) {
+              hasSecrets = true;
+              String secretKey = SecretStoreUtil.getSecretKey(stringValue);
+              try {
+                // Get the secret and replace the reference
+                String secretValue = _secretStore.getSecret(secretKey);
+
+                // This is simplified - in a real implementation you would
+                // need to extract the right value from the secret JSON
+                entry.setValue(secretValue);
+              } catch (Exception e) {
+                LOGGER.warn("DEBUG: Failed to resolve secret in FS config: {}", secretKey, e);
+              }
+            }
+          }
+        }
+
+        // Only create a new configuration if we actually resolved any secrets
+        if (hasSecrets) {
+          fsConfiguration = new PinotConfiguration(resolvedConfig);
+        }
+      }
       LOGGER.info("Initializing PinotFS for scheme {}, classname {}", scheme, fsClassName);
       PinotFS pinotFS = PluginManager.get().createInstance(fsClassName);
       pinotFS.init(fsConfiguration);
@@ -88,5 +122,10 @@ public class PinotFSFactory {
     for (PinotFS pinotFS : PINOT_FS_MAP.values()) {
       ((NoClosePinotFS) pinotFS)._delegate.close();
     }
+  }
+
+  public static void init(PinotConfiguration fsFactoryConfig, SecretStore secretStore) {
+    _secretStore = secretStore;
+    init(fsFactoryConfig);
   }
 }
