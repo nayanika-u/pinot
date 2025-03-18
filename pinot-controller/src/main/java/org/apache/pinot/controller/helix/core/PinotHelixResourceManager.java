@@ -43,6 +43,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -248,7 +249,7 @@ public class PinotHelixResourceManager {
   private TableSizeReader _tableSizeReader;
   private SecretStore _secretStore;
   // TODO - how to get it from controllerConf
-  private String secretStorePrefix;
+  private String _secretStorePrefix;
 
   public PinotHelixResourceManager(String zkURL, String helixClusterName, @Nullable String dataDir,
       boolean isSingleTenantCluster, boolean enableBatchMessageMode, int deletedSegmentsRetentionInDays,
@@ -278,7 +279,7 @@ public class PinotHelixResourceManager {
     _lineageManager = lineageManager;
     _rebalancePreChecker = rebalancePreChecker;
     _rebalancePreChecker.init(this, executorService);
-    this._secretStore = (secretStore != null) ? secretStore : new NoOpSecretStore();
+    _secretStore = Objects.requireNonNullElseGet(secretStore, NoOpSecretStore::new);
   }
 
   public PinotHelixResourceManager(ControllerConf controllerConf, @Nullable ExecutorService executorService,
@@ -2068,7 +2069,7 @@ public class PinotHelixResourceManager {
 
     // Extract and store credentials in secret store
     if (_secretStore != null && !(_secretStore instanceof NoOpSecretStore)) {
-      SecretStoreUtils.processSecretInformation(tableConfig, _secretStore, secretStorePrefix);
+      SecretStoreUtils.processSecretInformation(tableConfig, _secretStore, _secretStorePrefix);
     }
 
     setExistingTableConfig(tableConfig);

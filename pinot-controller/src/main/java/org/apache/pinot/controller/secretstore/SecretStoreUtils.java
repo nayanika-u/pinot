@@ -21,6 +21,11 @@ package org.apache.pinot.controller.secretstore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.pinot.spi.config.table.TableConfig;
 import org.apache.pinot.spi.config.table.ingestion.BatchIngestionConfig;
 import org.apache.pinot.spi.config.table.ingestion.IngestionConfig;
@@ -30,12 +35,6 @@ import org.apache.pinot.spi.secretstore.SecretStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
  * Utility methods for handling secrets in Pinot.
  */
@@ -44,6 +43,9 @@ public class SecretStoreUtils {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String SECRET_PREFIX = "SECRET:";
 
+    private SecretStoreUtils() {
+        // to avoid init
+    }
     /**
      * Creates a standard secret path for a table's credentials.
      *
@@ -66,7 +68,8 @@ public class SecretStoreUtils {
     /**
      * Processes secret information in a table config.
      */
-    public static boolean processSecretInformation(TableConfig tableConfig, SecretStore secretStore, String storePrefix) {
+    public static boolean processSecretInformation(TableConfig tableConfig, SecretStore secretStore,
+                                                   String storePrefix) {
         try {
             // Extract connection credentials from the table config
             Map<String, String> credentials = extractCredentialsFromTableConfig(tableConfig);
@@ -190,10 +193,12 @@ public class SecretStoreUtils {
         switch (sourceType.toLowerCase()) {
             case "kafka":
             case "confluent-kafka":
-                return fieldName.matches("(?i).*sasl\\.jaas\\.config.*|.*ssl\\.keystore\\.password.*|.*ssl\\.key\\.password.*");
+                return fieldName.matches("(?i).*sasl\\.jaas\\.config.*|.*ssl\\.keystore\\"
+                        + ".password.*|.*ssl\\.key\\.password.*");
 
             case "kinesis":
-                return fieldName.matches("(?i).*accessKey.*|.*secretKey.*|.*sessionToken.*|.*aws\\..*\\.credentials.*");
+                return fieldName.matches("(?i).*accessKey.*|.*secretKey.*|.*sessionToken.*|"
+                        + ".*aws\\..*\\.credentials.*");
 
             case "jdbc":
                 return fieldName.matches("(?i).*user.*|.*username.*|.*passwd.*");
@@ -203,19 +208,24 @@ public class SecretStoreUtils {
 
             case "adls":
             case "azure":
-                return fieldName.matches("(?i).*accountKey.*|.*sasToken.*|.*clientId.*|.*clientSecret.*|.*tenantId.*");
+                return fieldName.matches("(?i).*accountKey.*|.*sasToken.*|.*clientId.*"
+                        + "|.*clientSecret.*|.*tenantId.*");
 
             case "gcs":
-                return fieldName.matches("(?i).*credential.*|.*privateKey.*|.*privateKeyId.*|.*clientEmail.*");
+                return fieldName.matches("(?i).*credential.*|.*privateKey.*|.*privateKeyId.*"
+                       + "|.*clientEmail.*");
 
             case "snowflake":
-                return fieldName.matches("(?i).*user.*|.*password.*|.*privateKey.*|.*privateKeyPath.*|.*role.*|.*authenticator.*");
+                return fieldName.matches("(?i).*user.*|.*password.*|.*privateKey.*|.*privateKeyPath.*"
+                        + "|.*role.*|.*authenticator.*");
 
             case "bigquery":
-                return fieldName.matches("(?i).*privateKey.*|.*privateKeyId.*|.*clientEmail.*|.*tokenUri.*");
+                return fieldName.matches("(?i).*privateKey.*|.*privateKeyId.*|.*clientEmail.*"
+                        + "|.*tokenUri.*");
+            default:
+                LOGGER.error("Unrecognized source type. Fail the credential field validation.");
+                return false; // Unrecognized source type. Fail the validation
         }
-
-        return false;
     }
 
     /**
@@ -332,7 +342,7 @@ public class SecretStoreUtils {
                     // Get the secret data
                     String secretData = secretStore.getSecret(secretKey);
                     Map<String, Object> secretMap = OBJECT_MAPPER.readValue(secretData,
-                            new TypeReference<Map<String, Object>>() {});
+                            new TypeReference<Map<String, Object>>() { });
 
                     // Get source type
                     String sourceType = configMap.getOrDefault("sourceType",
@@ -342,7 +352,7 @@ public class SecretStoreUtils {
                     if (secretMap.containsKey("__CREDENTIAL_FIELDS__")) {
                         Map<String, List<String>> credentialFields = OBJECT_MAPPER.readValue(
                                 (String) secretMap.get("__CREDENTIAL_FIELDS__"),
-                                new TypeReference<Map<String, List<String>>>() {});
+                                new TypeReference<Map<String, List<String>>>() { });
 
                         if (credentialFields.containsKey(sourceType)) {
                             List<String> fields = credentialFields.get(sourceType);
@@ -366,6 +376,7 @@ public class SecretStoreUtils {
      * Checks if a value is a secret reference.
      */
     public static boolean isSecretReference(String value) {
+
         return value != null && value.startsWith(SECRET_PREFIX);
     }
 }

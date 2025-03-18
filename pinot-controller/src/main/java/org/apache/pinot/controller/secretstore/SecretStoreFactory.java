@@ -30,6 +30,9 @@ import org.slf4j.LoggerFactory;
 public class SecretStoreFactory {
     private static final Logger LOGGER = LoggerFactory.getLogger(SecretStoreFactory.class);
 
+    private SecretStoreFactory() {
+        // to avoid initialization
+    }
     /**
      * Creates a SecretStore based on controller configuration.
      *
