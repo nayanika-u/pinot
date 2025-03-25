@@ -63,7 +63,9 @@ import org.apache.pinot.common.Utils;
 import org.apache.pinot.common.config.TlsConfig;
 import org.apache.pinot.common.function.FunctionRegistry;
 import org.apache.pinot.common.http.PoolingHttpClientConnectionManagerHelper;
+import org.apache.pinot.common.metadata.ZKMetadataDecorator;
 import org.apache.pinot.common.metadata.ZKMetadataProvider;
+import org.apache.pinot.common.metadata.secretstore.SecretManagementDecorator;
 import org.apache.pinot.common.metrics.ControllerGauge;
 import org.apache.pinot.common.metrics.ControllerMeter;
 import org.apache.pinot.common.metrics.ControllerMetrics;
@@ -110,6 +112,7 @@ import org.apache.pinot.controller.helix.core.retention.RetentionManager;
 import org.apache.pinot.controller.helix.core.statemodel.LeadControllerResourceMasterSlaveStateModelFactory;
 import org.apache.pinot.controller.helix.core.util.HelixSetupUtils;
 import org.apache.pinot.controller.helix.starter.HelixConfig;
+import org.apache.pinot.controller.secretstore.SecretStoreFactory;
 import org.apache.pinot.controller.tuner.TableConfigTunerRegistry;
 import org.apache.pinot.controller.util.TableSizeReader;
 import org.apache.pinot.controller.validation.BrokerResourceValidationManager;
@@ -134,6 +137,7 @@ import org.apache.pinot.spi.env.PinotConfiguration;
 import org.apache.pinot.spi.filesystem.PinotFSFactory;
 import org.apache.pinot.spi.metrics.PinotMetricUtils;
 import org.apache.pinot.spi.metrics.PinotMetricsRegistry;
+import org.apache.pinot.spi.secretstore.SecretStore;
 import org.apache.pinot.spi.services.ServiceRole;
 import org.apache.pinot.spi.services.ServiceStartable;
 import org.apache.pinot.spi.stream.StreamConfig;
@@ -658,6 +662,13 @@ public abstract class BaseControllerStarter implements ServiceStartable {
     AtomicInteger failedToCopySchemaCount = new AtomicInteger();
     AtomicInteger failedToUpdateTableConfigCount = new AtomicInteger();
     ZkHelixPropertyStore<ZNRecord> propertyStore = _helixResourceManager.getPropertyStore();
+
+    SecretStore secretStore = SecretStoreFactory.createSecretStore(_config);
+
+    // Create and register the decorator
+    ZKMetadataDecorator secretDecorator = new SecretManagementDecorator(
+            secretStore, _config.getSecretStorePrefix());
+    ZKMetadataProvider.registerDecorator(secretDecorator);
 
     _helixResourceManager.getAllTables().forEach(tableNameWithType -> {
       Pair<TableConfig, Integer> tableConfigWithVersion =

@@ -77,6 +77,12 @@ public class ZKMetadataProvider {
   private static final String PROPERTYSTORE_SEGMENT_LINEAGE = "/SEGMENT_LINEAGE";
   private static final String PROPERTYSTORE_MINION_TASK_METADATA_PREFIX = "/MINION_TASK_METADATA";
 
+  private static final List<ZKMetadataDecorator> _decorators = new ArrayList<>();
+
+  public static void registerDecorator(ZKMetadataDecorator decorator) {
+    _decorators.add(decorator);
+  }
+
   public static void setUserConfig(ZkHelixPropertyStore<ZNRecord> propertyStore, String username, ZNRecord znRecord) {
     propertyStore.set(constructPropertyStorePathForUserConfig(username), znRecord, AccessOption.PERSISTENT);
   }
@@ -190,6 +196,9 @@ public class ZKMetadataProvider {
    * @return true if update is successful.
    */
   public static boolean setTableConfig(ZkHelixPropertyStore<ZNRecord> propertyStore, TableConfig tableConfig) {
+    for (ZKMetadataDecorator decorator : _decorators) {
+      decorator.beforeSetTableConfig(tableConfig, propertyStore);
+    }
     return setTableConfig(propertyStore, tableConfig, -1);
   }
 
@@ -466,6 +475,9 @@ public class ZKMetadataProvider {
    */
   @Nullable
   public static TableConfig getTableConfig(ZkHelixPropertyStore<ZNRecord> propertyStore, String tableNameWithType) {
+    for (ZKMetadataDecorator decorator : _decorators) {
+      tableConfig = decorator.afterGetTableConfig(tableConfig, propertyStore);
+    }
     return getTableConfig(propertyStore, tableNameWithType, true);
   }
 
