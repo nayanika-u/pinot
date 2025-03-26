@@ -475,10 +475,12 @@ public class ZKMetadataProvider {
    */
   @Nullable
   public static TableConfig getTableConfig(ZkHelixPropertyStore<ZNRecord> propertyStore, String tableNameWithType) {
+
+    TableConfig tableConfig =  getTableConfig(propertyStore, tableNameWithType, true);
     for (ZKMetadataDecorator decorator : _decorators) {
       tableConfig = decorator.afterGetTableConfig(tableConfig, propertyStore);
     }
-    return getTableConfig(propertyStore, tableNameWithType, true);
+    return tableConfig;
   }
 
   /**
