@@ -31,8 +31,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.helix.controller.rebalancer.strategy.AutoRebalanceStrategy;
 import org.apache.pinot.common.protocols.SegmentCompletionProtocol;
 import org.apache.pinot.controller.helix.core.rebalance.RebalanceConfig;
+import org.apache.pinot.controller.secretstore.SecretStoreFactory;
 import org.apache.pinot.spi.env.PinotConfiguration;
 import org.apache.pinot.spi.filesystem.LocalPinotFS;
+import org.apache.pinot.spi.secretstore.SecretStore;
 import org.apache.pinot.spi.utils.CommonConstants;
 import org.apache.pinot.spi.utils.TimeUtils;
 
@@ -1218,4 +1220,21 @@ public class ControllerConf extends PinotConfiguration {
   public String getSecretStorePrefix() {
     return getProperty(SECRET_STORE_PREFIX, "aws/");
   }
+
+//  private static SecretStore _testSecretStore = null;
+//
+//  public static void setTestSecretStore(SecretStore secretStore) {
+//    _testSecretStore = secretStore;
+//  }
+//
+//  public static void clearTestSecretStore() {
+//    _testSecretStore = null;
+//  }
+//
+//  public SecretStore getSecretStore() {
+//    if (_testSecretStore != null) {
+//      return _testSecretStore;
+//    }
+//    return SecretStoreFactory.createSecretStore(this);
+//  }
 }

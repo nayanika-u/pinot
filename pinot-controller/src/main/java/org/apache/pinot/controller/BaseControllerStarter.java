@@ -664,6 +664,7 @@ public abstract class BaseControllerStarter implements ServiceStartable {
     ZkHelixPropertyStore<ZNRecord> propertyStore = _helixResourceManager.getPropertyStore();
 
     SecretStore secretStore = SecretStoreFactory.createSecretStore(_config);
+    //SecretStore secretStore = _config.getSecretStore();
 
     // Create and register the decorator
     ZKMetadataDecorator secretDecorator = new SecretManagementDecorator(

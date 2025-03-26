@@ -77,10 +77,10 @@ public class ZKMetadataProvider {
   private static final String PROPERTYSTORE_SEGMENT_LINEAGE = "/SEGMENT_LINEAGE";
   private static final String PROPERTYSTORE_MINION_TASK_METADATA_PREFIX = "/MINION_TASK_METADATA";
 
-  private static final List<ZKMetadataDecorator> _decorators = new ArrayList<>();
+  private static final List<ZKMetadataDecorator> DECORATORS = new ArrayList<>();
 
   public static void registerDecorator(ZKMetadataDecorator decorator) {
-    _decorators.add(decorator);
+    DECORATORS.add(decorator);
   }
 
   public static void setUserConfig(ZkHelixPropertyStore<ZNRecord> propertyStore, String username, ZNRecord znRecord) {
@@ -196,7 +196,7 @@ public class ZKMetadataProvider {
    * @return true if update is successful.
    */
   public static boolean setTableConfig(ZkHelixPropertyStore<ZNRecord> propertyStore, TableConfig tableConfig) {
-    for (ZKMetadataDecorator decorator : _decorators) {
+    for (ZKMetadataDecorator decorator : DECORATORS) {
       decorator.beforeSetTableConfig(tableConfig, propertyStore);
     }
     return setTableConfig(propertyStore, tableConfig, -1);
@@ -475,9 +475,8 @@ public class ZKMetadataProvider {
    */
   @Nullable
   public static TableConfig getTableConfig(ZkHelixPropertyStore<ZNRecord> propertyStore, String tableNameWithType) {
-
-    TableConfig tableConfig =  getTableConfig(propertyStore, tableNameWithType, true);
-    for (ZKMetadataDecorator decorator : _decorators) {
+    TableConfig tableConfig = getTableConfig(propertyStore, tableNameWithType, true);
+    for (ZKMetadataDecorator decorator : DECORATORS) {
       tableConfig = decorator.afterGetTableConfig(tableConfig, propertyStore);
     }
     return tableConfig;
