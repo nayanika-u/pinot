@@ -112,7 +112,6 @@ import org.apache.pinot.controller.helix.core.retention.RetentionManager;
 import org.apache.pinot.controller.helix.core.statemodel.LeadControllerResourceMasterSlaveStateModelFactory;
 import org.apache.pinot.controller.helix.core.util.HelixSetupUtils;
 import org.apache.pinot.controller.helix.starter.HelixConfig;
-import org.apache.pinot.controller.secretstore.SecretStoreFactory;
 import org.apache.pinot.controller.tuner.TableConfigTunerRegistry;
 import org.apache.pinot.controller.util.TableSizeReader;
 import org.apache.pinot.controller.validation.BrokerResourceValidationManager;
@@ -663,12 +662,13 @@ public abstract class BaseControllerStarter implements ServiceStartable {
     AtomicInteger failedToUpdateTableConfigCount = new AtomicInteger();
     ZkHelixPropertyStore<ZNRecord> propertyStore = _helixResourceManager.getPropertyStore();
 
-    SecretStore secretStore = SecretStoreFactory.createSecretStore(_config);
-    //SecretStore secretStore = _config.getSecretStore();
+    //SecretStore secretStore = SecretStoreFactory.createSecretStore(_config);
+    // Use this for running tests
+    SecretStore secretStore = _config.getSecretStore();
 
     // Create and register the decorator
     ZKMetadataDecorator secretDecorator = new SecretManagementDecorator(
-            secretStore, _config.getSecretStorePrefix());
+            secretStore);
     ZKMetadataProvider.registerDecorator(secretDecorator);
 
     _helixResourceManager.getAllTables().forEach(tableNameWithType -> {

@@ -181,6 +181,10 @@ public class ZKMetadataProvider {
     String tableNameWithType = tableConfig.getTableName();
     String tableConfigPath = constructPropertyStorePathForResourceConfig(tableNameWithType);
     ZNRecord tableConfigZNRecord;
+    // Call decorators here
+    for (ZKMetadataDecorator decorator : DECORATORS) {
+      decorator.beforeSetTableConfig(tableConfig, propertyStore);
+    }
     try {
       tableConfigZNRecord = TableConfigUtils.toZNRecord(tableConfig);
     } catch (Exception e) {

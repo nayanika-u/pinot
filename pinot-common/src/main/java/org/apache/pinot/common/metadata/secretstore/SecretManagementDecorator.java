@@ -28,17 +28,15 @@ import org.apache.pinot.spi.secretstore.SecretStore;
 
 public class SecretManagementDecorator implements ZKMetadataDecorator {
     private final SecretStore _secretStore;
-    private final String _secretStorePrefix;
 
-    public SecretManagementDecorator(SecretStore secretStore, String secretStorePrefix) {
+    public SecretManagementDecorator(SecretStore secretStore) {
         _secretStore = secretStore;
-        _secretStorePrefix = secretStorePrefix;
     }
 
     @Override
     public void beforeSetTableConfig(TableConfig tableConfig, ZkHelixPropertyStore<ZNRecord> propertyStore) {
         if (!(_secretStore instanceof NoOpSecretStore)) {
-            SecretStoreUtils.processSecretInformation(tableConfig, _secretStore, _secretStorePrefix);
+            SecretStoreUtils.processSecretInformation(tableConfig, _secretStore);
         }
     }
 

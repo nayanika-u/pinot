@@ -1204,37 +1204,31 @@ public class ControllerConf extends PinotConfiguration {
    * @return whether secret management is enabled
    */
   public boolean isSecretManagementEnabled() {
-    return getProperty(SECRET_MANAGEMENT_ENABLED, false);
+    return getProperty(SECRET_MANAGEMENT_ENABLED, true);
   }
 
   /**
    * @return the endpoint for the secret service
    */
   public String getSecretServiceEndpoint() {
-    return getProperty(SECRET_SERVICE_ENDPOINT, "http://secret-service:8080");
+    return getProperty(SECRET_SERVICE_ENDPOINT, "http://localhost:8080");
   }
 
-  /**
-   * @return the prefix identifying which backend store to use
-   */
-  public String getSecretStorePrefix() {
-    return getProperty(SECRET_STORE_PREFIX, "aws/");
+
+  private static SecretStore _testSecretStore = null;
+
+  public static void setTestSecretStore(SecretStore secretStore) {
+    _testSecretStore = secretStore;
   }
 
-//  private static SecretStore _testSecretStore = null;
-//
-//  public static void setTestSecretStore(SecretStore secretStore) {
-//    _testSecretStore = secretStore;
-//  }
-//
-//  public static void clearTestSecretStore() {
-//    _testSecretStore = null;
-//  }
-//
-//  public SecretStore getSecretStore() {
-//    if (_testSecretStore != null) {
-//      return _testSecretStore;
-//    }
-//    return SecretStoreFactory.createSecretStore(this);
-//  }
+  public static void clearTestSecretStore() {
+    _testSecretStore = null;
+  }
+
+  public SecretStore getSecretStore() {
+    if (_testSecretStore != null) {
+      return _testSecretStore;
+    }
+    return SecretStoreFactory.createSecretStore(this);
+  }
 }

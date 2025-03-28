@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
 public class SecretStoreUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(SecretStoreUtils.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final String SECRET_PREFIX = "SECRET:";
+    protected static final String SECRET_FIELD_PREFIX = "SECRET:";
 
     private SecretStoreUtils() {
         // to avoid init
@@ -50,11 +50,10 @@ public class SecretStoreUtils {
      * Creates a standard secret path for a table's credentials.
      *
      * @param tableNameWithType The table name with type suffix
-     * @param storePrefix The prefix identifying which backend store to use
      * @return A complete path for the secret service
      */
-    public static String createTableCredentialsPath(String tableNameWithType, String storePrefix) {
-        return storePrefix + "tables/" + tableNameWithType + "/credentials";
+    public static String createTableCredentialsPath(String tableNameWithType) {
+        return "tables/" + tableNameWithType + "/credentials";
     }
 
     /**
@@ -62,21 +61,19 @@ public class SecretStoreUtils {
      *
      * @param tableConfig The table configuration to process
      * @param secretStore The secret store to use
-     * @param storePrefix The prefix identifying which backend store to use
      * @return true if secrets were processed, false otherwise
      */
     /**
      * Processes secret information in a table config.
      */
-    public static boolean processSecretInformation(TableConfig tableConfig, SecretStore secretStore,
-                                                   String storePrefix) {
+    public static boolean processSecretInformation(TableConfig tableConfig, SecretStore secretStore) {
         try {
             // Extract connection credentials from the table config
             Map<String, String> credentials = extractCredentialsFromTableConfig(tableConfig);
 
             if (!credentials.isEmpty()) {
                 // Create a standardized path with the configured prefix
-                String secretPath = createTableCredentialsPath(tableConfig.getTableName(), storePrefix);
+                String secretPath = createTableCredentialsPath(tableConfig.getTableName());
 
                 // Store in secret service
                 String secretKey = secretStore.storeSecret(secretPath, OBJECT_MAPPER.writeValueAsString(credentials));
@@ -271,7 +268,7 @@ public class SecretStoreUtils {
     private static void replaceCredentialsInMap(Map<String, String> configMap, String secretKey) {
         for (Map.Entry<String, String> entry : configMap.entrySet()) {
             if ("TO_BE_REPLACED".equals(entry.getValue())) {
-                entry.setValue(SECRET_PREFIX + secretKey);
+                entry.setValue(SECRET_FIELD_PREFIX + secretKey);
             }
         }
     }
@@ -337,7 +334,7 @@ public class SecretStoreUtils {
             String value = entry.getValue();
             if (isSecretReference(value)) {
                 try {
-                    String secretKey = value.substring(SECRET_PREFIX.length());
+                    String secretKey = value.substring(SECRET_FIELD_PREFIX.length());
 
                     // Get the secret data
                     String secretData = secretStore.getSecret(secretKey);
@@ -377,6 +374,6 @@ public class SecretStoreUtils {
      */
     public static boolean isSecretReference(String value) {
 
-        return value != null && value.startsWith(SECRET_PREFIX);
+        return value != null && value.startsWith(SECRET_FIELD_PREFIX);
     }
 }
